@@ -21,7 +21,7 @@ Dependencies: System.Web (for URL decoding)
 soc-otter
 
 .LINK
-https://github.com/soc-otter/Blue/Documents_Users_Trusted_and_Enabled.ps1
+https://github.com/soc-otter/Blue/blob/main/Documents_Users_Trusted_and_Enabled.ps1
 
 .Example
 PS> .\Documents_Users_Trusted_and_Enabled.ps1
