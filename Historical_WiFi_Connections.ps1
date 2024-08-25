@@ -6,7 +6,7 @@ Gathers details of previously connected Wi-Fi networks.
 This script retrieves the names and security keys of Wi-Fi networks previously connected to on the system. This is useful for cyber investigations to review past Wi-Fi connections, source of infection networks, user locations, and helping to identify potential adversarial activities or unauthorized access points.
 
 .NOTES
-Requires PowerShell v5+ and administrative privileges
+Requires PowerShell v5+.
 
 .Author
 soc-otter
