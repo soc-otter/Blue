@@ -29,6 +29,13 @@ if (-not (Test-Path -Path $outputDirectory)) {
 # Define the output file
 $outputFilePath = "$outputDirectory\Historical_WiFi_Connections.csv"
 
+# Retrieve the currently connected SSID
+$connectedSSID = netsh wlan show interfaces | ForEach-Object {
+    if ($_ -match "^\s*SSID\s+:\s+(.+)$") {
+        return $matches[1].Trim()
+    }
+}
+
 # Initialize a list to hold Wi-Fi profile objects
 $wifiProfileObjects = @()
 
@@ -53,6 +60,9 @@ for ($i = 0; $i -lt $ssidList.Count; $i++) {
         $profileObject | Add-Member -MemberType NoteProperty -Name $key -Value $value -Force
     }
 
+    # Add the IsConnected property to the profile object
+    $profileObject | Add-Member -MemberType NoteProperty -Name 'IsConnected' -Value ($ssid -eq $connectedSSID)
+
     $wifiProfileObjects += $profileObject
 }
 
@@ -61,6 +71,7 @@ Write-Progress -Activity "Collecting Wi-Fi Profiles" -Status "Processing Complet
 # Define the primary headers to be ordered first in the CSV
 $primaryHeaders = @(
     'SSID_name',
+    'IsConnected',  # Add IsConnected as a primary header
     'Name',
     'Authentication',
     'Cipher',
