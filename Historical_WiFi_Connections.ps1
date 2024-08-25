@@ -18,6 +18,9 @@ https://github.com/soc-otter/Blue/blob/main/Historical_WiFi_Connections.ps1
 PS> .\Historical_WiFi_Connections.ps1
 #>
 
+# This 1-liner is great for shells that cannot accept multi-line input and writes to the terminal
+#(netsh wlan show profiles) -match "All User Profile" -replace "^\s+All User Profile\s+:\s+" | ForEach-Object { $ssid = $_; $pwd = ((netsh wlan show profile name="$ssid" key=clear) -match "Key Content\s+:\s+(.*)" | Out-String).Trim() -replace "Key Content\s+:\s+" -replace "^{|}$", ""; [PSCustomObject]@{Name=$ssid; Password=$pwd} } | Format-Table -AutoSize
+
 # Define the output directory
 $outputDirectory = 'C:\BlueTeam'
 
