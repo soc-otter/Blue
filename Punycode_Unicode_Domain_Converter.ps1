@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Converts and defangs domain names between Punycode and Unicode formats. Tries to show conversion in notepad by opening file due to formatting reasons but if that fails, it will attempt to write to console.
+Converts and defangs domain names between Punycode and Unicode formats. Tries to show conversion in notepad by opening file due to formatting reasons but, if that fails, it will attempt to write to console.
 
 .DESCRIPTION
 This script handles domain names in both Punycode and Unicode formats including optionally defanged domains. It refangs domains if necessary, converts between Punycode and Unicode, and defangs the output for security purposes. The conversion results, including both original and converted domains in defanged format, are saved to a text file. This is useful for analyzing potentially malicious domains that may use obfuscation techniques. If file writing fails, results are output to the console but the output isn't formatted as nicely due to constraints.
