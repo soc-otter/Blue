@@ -8,7 +8,7 @@ Zone.Identifier is an alternate data stream (ADS) created by Windows on NTFS and
 .DESCRIPTION
 The script does a few things:
 - Scans the HKU registry hive for Trusted Documents in Microsoft Office.
-- Cleans up and resolves file paths (trims whitespace, expands env vars, decodes URI stuff).
+- Resolves file paths (trims whitespace, expands env vars, decodes URI stuff).
 - Checks for Zone.Identifier ADS for some extra details.
 - Finally, wraps it all up in a CSV file.
 
@@ -76,6 +76,7 @@ $registryDataPattern = '^(?<FileName>\s*.+?)\s{2,}(?<RegistryType>REG_BINARY)\s{
 $trustedDocumentRegistryKeys = Get-ChildItem 'REGISTRY::HKU\*\Software\Microsoft\Office\*\*\Security\Trusted Documents\TrustRecords' -ErrorAction SilentlyContinue
 
 foreach ($registryKey in $trustedDocumentRegistryKeys) {
+
     # Query each registry key
     $registryQueryResult = reg query $registryKey.Name
 
@@ -84,8 +85,10 @@ foreach ($registryKey in $trustedDocumentRegistryKeys) {
 
     # Process each line in the result
     foreach ($line in $queryLines) {
+    
         # Match lines with the regex pattern
         if ($line -match $registryDataPattern) {
+        
             # Extract the file name and binary data, then clean up the file name
             $FileName = $matches['FileName'].Trim()
             $BinaryData = $matches['BinaryData']
