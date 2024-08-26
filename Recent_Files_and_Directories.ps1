@@ -9,23 +9,23 @@ This script scans the 'Recent' folder in each user profile on a Windows system t
 The 'Recent' folder stores these shortcuts as a record of user activity, providing insight into what files and directories were accessed and when. These shortcuts not only capture the path to the file but also preserve metadata like access times.
 
 .NOTES
-File Version: 1.4
+File Version: 1.5
 Works with PowerShell v5+, provided the necessary permissions to access user profiles and file system.
 
 .Author
 soc-otter
 
 .LINK
-https://github.com/soc-otter/Blue/blob/main/All_Recent_File_and_Directory_Details.ps1
+https://github.com/soc-otter/Blue/blob/main/Recent_Files_and_Directories.ps1
 
 .Example
-PS> .\All_Recent_File_and_Directory_Details.ps1
+PS> .\Recent_Files_and_Directories.ps1
 
 #>
 
 # Output directory and file
 $outputDirectory = 'C:\BlueTeam'
-$outputCsvFilePath = Join-Path $outputDirectory 'All_Recent_File_and_Directory_Details.csv'
+$outputCsvFilePath = Join-Path $outputDirectory 'Recent_Files_and_Directories.csv'
 
 # Ensure the output directory exists
 if (-not (Test-Path -Path $outputDirectory)) {
