@@ -10,7 +10,7 @@ This script searches the registry for trusted Microsoft Office documents, retrie
 Requires PowerShell v5+ and admin permissions.
 Dependencies: System.Web (for URL decoding)
 
-.Author
+.AUTHOR
 soc-otter
 
 .LINK
