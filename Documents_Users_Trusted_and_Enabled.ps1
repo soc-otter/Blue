@@ -1,20 +1,13 @@
 <#
 
 .SYNOPSIS
-This script digs into the registry for Microsoft Office Trusted Documents and spits out a CSV detailing trust status, file info, SHA256 hashes, timestamps, and Zone.Identifier 3 ADS info if it's there.
-
-Zone.Identifier is an alternate data stream (ADS) created by Windows on NTFS and ReFS file systems to tag files downloaded from the internet or other potentially untrusted sources, commonly known as the "Mark of the Web" (MotW). This stream includes a ZoneTransfer::ZoneId value, such as 3 for internet-sourced files, as part of the Windows security zone system. Windows, along with supported applications like web browsers, email clients, and file transfer utilities, attaches this stream when a file is downloaded or received. The process involves the application using Windows APIs, such as IAttachmentExecute or IZoneIdentifier, to set the appropriate zone information. ADS like Zone.Identifier are specific to NTFS and ReFS and are not visible in standard file listings, meaning they can exist without being immediately noticed. These streams persist when files are moved or copied within the same volume but may be lost when transferred to non-supporting file systems or during certain file operations. The Zone.Identifier stream, or MotW, not only includes the ZoneId but can also contain additional metadata such as the referrer URL, HostUrl, and LastWriterPackageFamilyName to provide more context about the file's origin.
+Finds trusted Microsoft Office documents from the registry and generates a CSV. When a user trusts a document enought to open and edit or run embedded content, those documents are stored in registgry.
 
 .DESCRIPTION
-The script does a few things:
-- Scans the HKU registry hive for Trusted Documents in Microsoft Office.
-- Resolves file paths (trims whitespace, expands env vars, decodes URI stuff).
-- Checks for Zone.Identifier ADS for some extra details.
-- Finally, wraps it all up in a CSV file.
+This script searches the registry for trusted Microsoft Office documents, retrieves detailed metadata (file info, hash, timestamps), and checks for additional details such as Zone.Identifier 3 Alternate Data Stream (ADS). It helps detect potential adversarial behavior by examining documents that users have marked as trusted thereby providing insight into potentially malicious files. The results are output to a CSV.
 
 .NOTES
-File Version: 2.5
-Works with: PowerShell 5.1 or higher, with the right permissions for registry and file system.
+Requires PowerShell v5+ and admin permissions.
 Dependencies: System.Web (for URL decoding)
 
 .Author
@@ -23,10 +16,11 @@ soc-otter
 .LINK
 https://github.com/soc-otter/Blue/blob/main/Documents_Users_Trusted_and_Enabled.ps1
 
-.Example
+.EXAMPLE
 PS> .\Documents_Users_Trusted_and_Enabled.ps1
 
 #>
+
 
 # Define the base directory for storing the output
 $outputDirectory = 'C:\BlueTeam'
@@ -50,94 +44,88 @@ $hostname = $env:COMPUTERNAME
 # Function to resolve paths with environment variables and URI-encoded characters
 function Resolve-DocumentPath {
     param (
-        [string]$documentPath
+        [string]$documentPath,
+        [string]$username
     )
 
-    # Decode URL-encoded characters (e.g., %20 -> space)
-    $decodedPath = [System.Web.HttpUtility]::UrlDecode($documentPath)
+    try {
+        # Decode URL-encoded characters (e.g., %20 -> space)
+        $decodedPath = [System.Web.HttpUtility]::UrlDecode($documentPath)
 
-    # Strip common URL prefixes like 'file:///', 'file://', 'http://', 'https://'
-    $pathWithoutPrefix = $decodedPath -replace '^file:\/\/\/|^file:\/\/|^https?:\/\/', ''
+        # Strip 'file://' prefix if present
+        $pathWithoutPrefix = $decodedPath -replace '^file:/{2,3}', ''
 
-    # Expand environment variables in the path
-    $resolvedPath = [Environment]::ExpandEnvironmentVariables($pathWithoutPrefix)
+        # Handle URLs and UNC paths
+        if ($pathWithoutPrefix -match '^(https?:\/\/|\\\\)') {
+            return $pathWithoutPrefix  # Return URLs and UNC paths as-is
+        }
 
-    # Replace forward slashes with backslashes for Windows paths
-    return $resolvedPath -replace '\/', '\'
-}
+        # Define user-specific environment variables
+        $userEnvVars = @(
+            '%USERPROFILE%',
+            '%APPDATA%',
+            '%LOCALAPPDATA%',
+            '%HOMEPATH%',
+            '%HOMEDRIVE%',
+            '%TEMP%',
+            '%TMP%'
+        )
 
-# This array will hold our registry data
-$trustedDocumentsData = @()
+        # Create a hashtable for variable replacements
+        $replacements = @{}
 
-# Pattern to match relevant registry data
-$registryDataPattern = '^(?<FileName>\s*.+?)\s{2,}(?<RegistryType>REG_BINARY)\s{2,}(?<BinaryData>.+)$'
-
-# Grab the registry keys for Office Trusted Documents
-$trustedDocumentRegistryKeys = Get-ChildItem 'REGISTRY::HKU\*\Software\Microsoft\Office\*\*\Security\Trusted Documents\TrustRecords' -ErrorAction SilentlyContinue
-
-foreach ($registryKey in $trustedDocumentRegistryKeys) {
-
-    # Query each registry key
-    $registryQueryResult = reg query $registryKey.Name
-
-    # Split the result into lines for processing
-    $queryLines = $registryQueryResult -split "`r`n"
-
-    # Process each line in the result
-    foreach ($line in $queryLines) {
-    
-        # Match lines with the regex pattern
-        if ($line -match $registryDataPattern) {
-        
-            # Extract the file name and binary data, then clean up the file name
-            $FileName = $matches['FileName'].Trim()
-            $BinaryData = $matches['BinaryData']
-
-            # Resolve the full and clean path of the file once
-            $resolvedFilePath = Resolve-DocumentPath -documentPath $FileName
-
-            # Set up placeholders for ADS info
-            $zoneId = '-'
-            $downloadLink = '-'
-            $referrerUrl = '-'
-
-            # Check for Zone.Identifier ADS after the path is resolved
-            try {
-                $adsContent = Get-Content -Path $resolvedFilePath -Stream Zone.Identifier -ErrorAction SilentlyContinue
-                if ($adsContent -and ($adsContent -match '^ZoneId=3')) {
-                    foreach ($line in $adsContent) {
-                        if ($line -match '^HostUrl=(.+)') {
-                            $downloadLink = $matches[1]
-                        }
-                        if ($line -match '^ReferrerUrl=(.+)') {
-                            $referrerUrl = $matches[1]
-                        }
-                    }
-                    $zoneId = 3
-                }
-            } catch {
-                # Move on if there’s an issue
-            }
-
-            # Add the file info and ADS data to the array
-            $trustedDocumentsData += [PSCustomObject]@{
-                FileName    = $resolvedFilePath
-                BinaryData  = $BinaryData
-                DownloadLink= $downloadLink
-                ReferrerUrl = $referrerUrl
-                ZoneId      = $zoneId
+        foreach ($var in $userEnvVars) {
+            $varName = $var.Trim('%')
+            switch ($varName) {
+                'USERPROFILE' { $replacements[$var] = "C:\Users\$username" }
+                'APPDATA' { $replacements[$var] = "C:\Users\$username\AppData\Roaming" }
+                'LOCALAPPDATA' { $replacements[$var] = "C:\Users\$username\AppData\Local" }
+                'HOMEPATH' { $replacements[$var] = "\Users\$username" }
+                'HOMEDRIVE' { $replacements[$var] = "C:" }
+                'TEMP' { $replacements[$var] = "C:\Users\$username\AppData\Local\Temp" }
+                'TMP' { $replacements[$var] = "C:\Users\$username\AppData\Local\Temp" }
             }
         }
+
+        # Replace user-specific environment variables
+        $resolvedPath = $pathWithoutPrefix
+        foreach ($key in $replacements.Keys) {
+            $resolvedPath = $resolvedPath -replace [regex]::Escape($key), $replacements[$key]
+        }
+
+        # Replace any other environment variables
+        $resolvedPath = [Environment]::ExpandEnvironmentVariables($resolvedPath)
+
+        # Normalize path separators (replace forward slashes with backslashes)
+        $resolvedPath = $resolvedPath -replace '/', '\'
+
+        # Ensure proper backslash usage (replace multiple backslashes with a single one)
+        $resolvedPath = $resolvedPath -replace '\\+', '\'
+
+        # Remove any leading or trailing whitespace
+        $resolvedPath = $resolvedPath.Trim()
+
+        # If the path doesn't start with a drive letter and wasn't modified by user-specific vars, prepend the user profile path
+        if (-not ($resolvedPath -match '^[A-Za-z]:' -or $resolvedPath -match '^\\\\' -or ($userEnvVars | Where-Object { $documentPath -match [regex]::Escape($_) }))) {
+            $userProfilePath = "C:\Users\$username"
+            $resolvedPath = Join-Path $userProfilePath $resolvedPath
+        }
+
+        return $resolvedPath
+    }
+    catch {
+        return $documentPath  # Return original path if resolution fails
     }
 }
 
 # Makes file sizes look pretty
 function Get-FormattedByteSize {
     param ([double]$ByteSize)
+    if ($ByteSize -eq 0) { return "-" }
     $SizeUnits = @("bytes", "KB", "MB", "GB", "TB", "PB")
     $UnitIndex = 0
     $Size = [math]::Round($ByteSize, 2)
-    while ($Size -ge 1KB) {
+    while ($Size -ge 1KB -and $UnitIndex -lt 5) {
         $Size /= 1KB
         $UnitIndex++
     }
@@ -150,18 +138,58 @@ function Get-DocumentFileInfo {
         [string]$documentPath
     )
     try {
+        if (-not (Test-Path $documentPath)) {
+            throw "File not found: $documentPath"
+        }
+
         $fileInfo = Get-Item $documentPath -ErrorAction Stop
-        $acl = Get-Acl $documentPath
+        $acl = Get-Acl $documentPath -ErrorAction Stop
+        
+        # Calculate SHA256 hash
+        $hash = '-'
+        try {
+            $hash = (Get-FileHash -Path $documentPath -Algorithm SHA256 -ErrorAction Stop).Hash
+        } catch {
+            #Write-Warning "Failed to calculate hash for $documentPath : $_"
+        }
+
+        # Get Zone.Identifier info
+        $zoneId = '-'
+        $downloadLink = '-'
+        $referrerUrl = '-'
+        try {
+            $adsContent = Get-Content -Path $documentPath -Stream Zone.Identifier -ErrorAction Stop
+            if ($adsContent) {
+                $zoneIdMatch = $adsContent | Select-String -Pattern '^ZoneId=(\d+)' -ErrorAction SilentlyContinue
+                if ($zoneIdMatch) {
+                    $zoneId = $zoneIdMatch.Matches.Groups[1].Value
+                }
+                $hostUrlMatch = $adsContent | Select-String -Pattern '^HostUrl=(.+)' -ErrorAction SilentlyContinue
+                if ($hostUrlMatch) {
+                    $downloadLink = $hostUrlMatch.Matches.Groups[1].Value
+                }
+                $referrerUrlMatch = $adsContent | Select-String -Pattern '^ReferrerUrl=(.+)' -ErrorAction SilentlyContinue
+                if ($referrerUrlMatch) {
+                    $referrerUrl = $referrerUrlMatch.Matches.Groups[1].Value
+                }
+            }
+        } catch {
+            #Write-Warning "Failed to read ADS for $documentPath : $_"
+        }
 
         return @{
-            SHA256Hash     = (Get-FileHash -Algorithm SHA256 -Path $documentPath).Hash
-            CreationTime   = $fileInfo.CreationTime.ToString('o')
-            LastAccessTime = $fileInfo.LastAccessTime.ToString('o')
-            LastWriteTime  = $fileInfo.LastWriteTime.ToString('o')
+            SHA256Hash     = $hash
+            CreationTime   = if ($fileInfo.CreationTime) { $fileInfo.CreationTime.ToString('o') } else { '-' }
+            LastAccessTime = if ($fileInfo.LastAccessTime) { $fileInfo.LastAccessTime.ToString('o') } else { '-' }
+            LastWriteTime  = if ($fileInfo.LastWriteTime) { $fileInfo.LastWriteTime.ToString('o') } else { '-' }
             FileSize       = Get-FormattedByteSize -ByteSize $fileInfo.Length
-            Owner          = $acl.Owner
+            Owner          = if ([string]::IsNullOrWhiteSpace($acl.Owner)) { '-' } else { $acl.Owner }
+            ZoneId         = $zoneId
+            DownloadLink   = $downloadLink
+            ReferrerUrl    = $referrerUrl
         }
     } catch {
+        #Write-Warning "Error processing file $documentPath : $_"
         return @{
             SHA256Hash     = '-'
             CreationTime   = '-'
@@ -169,50 +197,100 @@ function Get-DocumentFileInfo {
             LastWriteTime  = '-'
             FileSize       = '-'
             Owner          = '-'
+            ZoneId         = '-'
+            DownloadLink   = '-'
+            ReferrerUrl    = '-'
         }
     }
 }
 
-# Array to hold the CSV rows
-$csvRows = @()
+# This array will hold our registry data
+$trustedDocumentsData = @()
 
-# Process each trusted document entry
-foreach ($documentEntry in $trustedDocumentsData) {
-    # Figure out editing and content enabled status from binary data
-    $editingEnabled = $false
-    $contentEnabled = $false
+# Pattern to match relevant registry data
+$registryDataPattern = '^(?<FileName>\s*.+?)\s{2,}(?<RegistryType>REG_BINARY)\s{2,}(?<BinaryData>.+)$'
 
-    if ($documentEntry.BinaryData -match 'FFFFFF7F') {
-        $editingEnabled = $true
-        $contentEnabled = $true
-    } elseif ($documentEntry.BinaryData -match '01000000') {
-        $editingEnabled = $true
-        $contentEnabled = $false
+# Map HKU hive
+New-PSDrive -Name HKU -PSProvider Registry -Root HKEY_USERS | Out-Null
+
+# Get all user SIDs
+$userSIDs = Get-ChildItem HKU: | Where-Object { $_.Name -match 'S-1-5-21-\d+-\d+-\d+-\d+$' }
+
+foreach ($sid in $userSIDs) {
+    $username = try {
+        $objSID = New-Object System.Security.Principal.SecurityIdentifier($sid.PSChildName)
+        $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
+        $objUser.Value.Split('\')[1]  # Extract just the username part
+    } catch {
+        "Unknown User (SID: $($sid.PSChildName))"
     }
 
-    # Get file details
-    $fileInfo = Get-DocumentFileInfo -documentPath $documentEntry.FileName
+    # Construct the registry path for Trusted Documents
+    $trustRecordsPath = Join-Path $sid.PSPath "Software\Microsoft\Office\*\*\Security\Trusted Documents\TrustRecords"
+    
+    # Get Trusted Document records for this user
+    $trustedDocumentRegistryKeys = Get-ChildItem $trustRecordsPath -ErrorAction SilentlyContinue
 
-    # Add everything to the CSV rows
-    $csvRows += [PSCustomObject]@{
-        Hostname        = $hostname
-        FileName        = $documentEntry.FileName
-        Owner           = $fileInfo.Owner
-        FileSize        = $fileInfo.FileSize
-        EditingEnabled  = $editingEnabled
-        ContentEnabled  = $contentEnabled
-        SHA256Hash      = $fileInfo.SHA256Hash
-        ReferrerUrl     = $documentEntry.ReferrerUrl
-        DownloadLink    = $documentEntry.DownloadLink
-        CreationTime    = $fileInfo.CreationTime
-        LastAccessTime  = $fileInfo.LastAccessTime
-        LastWriteTime   = $fileInfo.LastWriteTime
-        ZoneId          = $documentEntry.ZoneId
-        BinaryData      = $documentEntry.BinaryData
+    foreach ($registryKey in $trustedDocumentRegistryKeys) {
+        # Query each registry key
+        $registryQueryResult = reg query $registryKey.Name
+
+        # Split the result into lines for processing
+        $queryLines = $registryQueryResult -split "`r`n"
+
+        # Process each line in the result
+        foreach ($line in $queryLines) {
+            # Match lines with the regex pattern
+            if ($line -match $registryDataPattern) {
+                # Extract the file name and binary data, then clean up the file name
+                $FileName = $matches['FileName'].Trim()
+                $BinaryData = $matches['BinaryData']
+
+                # Resolve the full and clean path of the file once, using the username
+                $resolvedFilePath = Resolve-DocumentPath -documentPath $FileName -username $username
+
+                # Get file details after path resolution
+                $fileInfo = Get-DocumentFileInfo -documentPath $resolvedFilePath
+
+                # Figure out editing and content enabled status from binary data
+                $editingEnabled = $false
+                $contentEnabled = $false
+
+                if ($BinaryData -match 'FFFFFF7F') {
+                    $editingEnabled = $true
+                    $contentEnabled = $true
+                } elseif ($BinaryData -match '01000000') {
+                    $editingEnabled = $true
+                    $contentEnabled = $false
+                }
+
+                # Add the file info and ADS data to the array
+                $trustedDocumentsData += [PSCustomObject]@{
+                    Hostname        = $hostname
+                    HKCUUser        = "$env:COMPUTERNAME\$username"
+                    FileName        = $resolvedFilePath
+                    Owner           = $fileInfo.Owner
+                    FileSize        = $fileInfo.FileSize
+                    EditingEnabled  = $editingEnabled
+                    ContentEnabled  = $contentEnabled
+                    SHA256Hash      = $fileInfo.SHA256Hash
+                    ReferrerUrl     = $fileInfo.ReferrerUrl
+                    DownloadLink    = $fileInfo.DownloadLink
+                    CreationTime    = $fileInfo.CreationTime
+                    LastAccessTime  = $fileInfo.LastAccessTime
+                    LastWriteTime   = $fileInfo.LastWriteTime
+                    ZoneId          = $fileInfo.ZoneId
+                    BinaryData      = $BinaryData
+                }
+            }
+        }
     }
 }
 
+# Remove the HKU PSDrive
+Remove-PSDrive -Name HKU
+
 # Export everything to a CSV file
-$csvRows | Export-Csv -Path $outputCsvFilePath -NoTypeInformation
+$trustedDocumentsData | Export-Csv -Path $outputCsvFilePath -NoTypeInformation
 
 Write-Progress -Activity "Collecting Trusted Documents" -Status "All done!" -PercentComplete 100
