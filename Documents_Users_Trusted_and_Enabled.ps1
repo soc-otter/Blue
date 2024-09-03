@@ -21,7 +21,6 @@ PS> .\Documents_Users_Trusted_and_Enabled.ps1
 
 #>
 
-
 # Define the base directory for storing the output
 $outputDirectory = 'C:\BlueTeam'
 
