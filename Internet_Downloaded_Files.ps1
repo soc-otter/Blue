@@ -1,4 +1,5 @@
 <#
+
 .SYNOPSIS
 Checks the entire file system for files that have been downloaded from the internet.
 
@@ -6,22 +7,33 @@ Checks the entire file system for files that have been downloaded from the inter
 This script inspects all files on a Windows system identifying those downloaded from the internet using the Zone.Identifier Alternate Data Streams (ADS). It collects metadata about each file, including size, path, SHA256 hash, owner, creation time, last write time, last access time, and digital signature details. Results are exported to a CSV file in small batches to minimize memory usage and improve performance.
 
 .NOTES
-Requires PowerShell v5+ and administrative privileges.
+Requires PowerShell v5+ and permissions to access what you are looking to scan.
 
-.Author
+.AUTHOR
 soc-otter
 
 .LINK
 https://github.com/soc-otter/Blue/blob/main/Internet_Downloaded_Files.ps1
 
 .EXAMPLE
-PS> .\Internet_Downloaded_Files.ps1
+PS> .\Internet_Downloaded_Files.ps1 (using default hardcoded parameters)
+
+PS> .\Internet_Downloaded_Files.ps1 -ExcludeDriveLetters "A", "B" -ExcludeRootPaths "\\abc.example.com\dfspath1", "\\abc.example.com\dfspath2"
+
 #>
 
-# Ensure the script is running with administrative privileges
-if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-    throw "This script requires administrative privileges. Please run PowerShell as an administrator and try again."
-}
+param(
+    [string[]]$ExcludeDriveLetters,
+    [string[]]$ExcludeRootPaths
+)
+
+# Default exclusions
+$defaultExcludeDriveLetters = @("AAAAA", "BBBBB")
+$defaultExcludeRootPaths = @("\\abc.example.com\dfspath1", "\\abc.example.com\dfspath2")
+
+# Use provided parameters if available, otherwise use defaults
+$finalExcludeDriveLetters = if ($ExcludeDriveLetters) { $ExcludeDriveLetters } else { $defaultExcludeDriveLetters }
+$finalExcludeRootPaths = if ($ExcludeRootPaths) { $ExcludeRootPaths } else { $defaultExcludeRootPaths }
 
 # Output directory and file for CSV
 $outputDirectory = 'C:\BlueTeam'
@@ -100,8 +112,12 @@ function Get-AuthenticodeSignatureDetails {
     }
 }
 
-# Get drives
-$drives = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Used -ne $null }
+# Get drives, excluding specified drive letters and root paths
+$drives = Get-PSDrive -PSProvider FileSystem | Where-Object { 
+    $_.Used -ne $null -and 
+    $_.Name -notin $finalExcludeDriveLetters -and
+    $_.Root -notin $finalExcludeRootPaths
+}
 
 # Calculate the total estimated files based on drive sizes
 $totalSizeInTB = [math]::Round(($drives | Measure-Object -Property Used -Sum).Sum / 1TB, 2)
