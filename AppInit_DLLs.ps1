@@ -15,10 +15,10 @@ Requires PowerShell v5+ and administrative privileges.
 soc-otter
 
 .LINK
-https://github.com/soc-otter/Blue/blob/main/AppInit_DLLs_Details.ps1
+https://github.com/soc-otter/Blue/blob/main/AppInit_DLLs.ps1
 
 .EXAMPLE
-PS> .\AppInit_DLLs_Details.ps1
+PS> .\AppInit_DLLs.ps1
 
 #>
 
@@ -30,7 +30,7 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 # Define registry paths and output path
 $appInitDLLsPath = "HKLM\Software\Microsoft\Windows NT\CurrentVersion\Windows"
 $outputDirectory = 'C:\BlueTeam'
-$outputFilePath = Join-Path $outputDirectory "AppInit_DLLs_Details.csv"
+$outputFilePath = Join-Path $outputDirectory "AppInit_DLLs.csv"
 
 # Ensure output directory exists
 if (-not (Test-Path -Path $outputDirectory)) {
