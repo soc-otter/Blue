@@ -8,7 +8,7 @@ This script retrieves information about visible Wi-Fi networks using the `netsh 
 .NOTES
 Requires PowerShell v5+.
 
-.Author
+.AUTHOR
 soc-otter
 
 .LINK
