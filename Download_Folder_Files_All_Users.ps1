@@ -8,19 +8,19 @@ This script scans the "Downloads" folder for each user profile on a Windows syst
 .NOTES
 Requires PowerShell v5+ and administrative privileges.
 
-.Author
+.AUTHOR
 soc-otter
 
 .LINK
-https://github.com/soc-otter/Blue/blob/main/All_Users_Download_Folder_Files.ps1
+https://github.com/soc-otter/Blue/blob/main/Download_Folder_Files_All_Users.ps1
 
 .EXAMPLE
-PS> .\All_Users_Download_Folder_Files.ps1
+PS> .\Download_Folder_Files_All_Users.ps1
 #>
 
 # Output directory for CSV
 $outputDirectory = 'C:\BlueTeam'
-$outputFile = Join-Path $outputDirectory 'All_Users_Download_Folder_Files.csv'
+$outputFile = Join-Path $outputDirectory 'Download_Folder_Files_All_Users.csv'
 
 # Ensure output directory exists
 if (-not (Test-Path -Path $outputDirectory)) {
