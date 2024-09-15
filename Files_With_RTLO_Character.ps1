@@ -99,7 +99,7 @@ function Get-ZoneIdentifierInfo {
     }
 }
 
-# Function to retrieve digital signature details
+# Function to retrieve signatures info
 function Get-AuthenticodeSignatureDetails {
     param ([string]$FilePath)
     try {
