@@ -37,28 +37,6 @@ function Get-FileOwner {
     try { (Get-Acl $Path).Owner } catch { "-" }
 }
 
-function Get-ZoneIdentifierInfo {
-    param ([string]$filePath)
-    $zoneId = "-"
-    $referrerUrl = "-"
-    $hostUrl = "-"
-    try {
-        $adsContent = Get-Content -Path $filePath -Stream Zone.Identifier -ErrorAction SilentlyContinue
-        if ($adsContent -match '^ZoneId=3') {
-            $zoneId = "3"
-            switch -Regex ($adsContent) {
-                '^ReferrerUrl=(.+)' { $referrerUrl = $matches[1] }
-                '^HostUrl=(.+)'     { $hostUrl = $matches[1] }
-            }
-        }
-    } catch {}
-    New-Object PSObject -Property @{
-        ZoneId      = if ([string]::IsNullOrEmpty($zoneId)) { "-" } else { $zoneId }
-        ReferrerUrl = if ([string]::IsNullOrEmpty($referrerUrl)) { "-" } else { $referrerUrl }
-        HostUrl     = if ([string]::IsNullOrEmpty($hostUrl)) { "-" } else { $hostUrl }
-    }
-}
-
 function Get-AuthenticodeSignatureDetails {
     param ([string]$FilePath)
     try {
@@ -102,9 +80,6 @@ function Get-OrphanedProcessDetails {
                 IsOSBinary = "-"
                 SignerCertificate = "-"
                 TimeStamperCertificate = "-"
-                ZoneId = "-"
-                ReferrerUrl = "-"
-                HostUrl = "-"
                 FileSHA256 = "-"
                 FileSize = "-"
                 FileCreationTime = "-"
@@ -136,15 +111,11 @@ function Get-OrphanedProcessDetails {
             if ($currentProcess.ExecutablePath -and (Test-Path $currentProcess.ExecutablePath)) {
                 $file = Get-Item $currentProcess.ExecutablePath
                 $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($currentProcess.ExecutablePath)
-                $zoneInfo = Get-ZoneIdentifierInfo $currentProcess.ExecutablePath
                 $signatureInfo = Get-AuthenticodeSignatureDetails $currentProcess.ExecutablePath
                 
                 $details.IsOSBinary = $signatureInfo.IsOSBinary
                 $details.SignerCertificate = $signatureInfo.SignerCertificate
                 $details.TimeStamperCertificate = $signatureInfo.TimeStamperCertificate
-                $details.ZoneId = $zoneInfo.ZoneId
-                $details.ReferrerUrl = $zoneInfo.ReferrerUrl
-                $details.HostUrl = $zoneInfo.HostUrl
                 $details.FileSHA256 = (Get-FileHash $file.FullName -Algorithm SHA256).Hash
                 $details.FileSize = Format-Size $file.Length
                 $details.FileCreationTime = $file.CreationTime
