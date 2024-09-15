@@ -74,7 +74,7 @@ function Get-FileOwner {
     }
 }
 
-# Updated function to get Zone Identifier data
+# Function to get Zone Identifier data
 function Get-ZoneIdentifierInfo {
     param ([string]$filePath)
     $zoneId = "-"
