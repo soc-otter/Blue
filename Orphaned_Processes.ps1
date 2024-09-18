@@ -106,13 +106,14 @@ function Get-OrphanedProcessDetails {
                 Comments = "-"
                 FileVersionRaw = "-"
                 ProductVersionRaw = "-"
+                CommandLine = "-"
             }
 
             if ($currentProcess.ExecutablePath -and (Test-Path $currentProcess.ExecutablePath)) {
                 $file = Get-Item $currentProcess.ExecutablePath
                 $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($currentProcess.ExecutablePath)
                 $signatureInfo = Get-AuthenticodeSignatureDetails $currentProcess.ExecutablePath
-                
+
                 $details.IsOSBinary = $signatureInfo.IsOSBinary
                 $details.SignerCertificate = $signatureInfo.SignerCertificate
                 $details.TimeStamperCertificate = $signatureInfo.TimeStamperCertificate
@@ -143,6 +144,8 @@ function Get-OrphanedProcessDetails {
                 $details.FileVersionRaw = if ($fileVersion.FileVersionRaw) { $fileVersion.FileVersionRaw } else { "-" }
                 $details.ProductVersionRaw = if ($fileVersion.ProductVersionRaw) { $fileVersion.ProductVersionRaw } else { "-" }
             }
+
+            $details.CommandLine = if ($currentProcess.CommandLine) { $currentProcess.CommandLine } else { "-" }
 
             New-Object PSObject -Property $details
         }
