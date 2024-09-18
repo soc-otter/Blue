@@ -12,15 +12,15 @@ Requires PowerShell v5+ and administrative privileges.
 soc-otter
 
 .LINK
-https://github.com/soc-otter/Blue/blob/main/Run_Registry_Details.ps1
+https://github.com/soc-otter/Blue/blob/main/AutoStart_Run_Registries_All_Users.ps1
 
 .EXAMPLE
-PS> .\Run_Registry_Details.ps1
+PS> .\AutoStart_Run_Registries_All_Users.ps1
 #>
 
-# Define the output directory
+# Define the output directory and file
 $outputDirectory = 'C:\BlueTeam'
-$outputCsvPath = "$outputDirectory\Run_Registry_Details.csv"
+$outputCsvPath = "$outputDirectory\AutoStart_Run_Registries_All_Users.csv"
 
 # Ensure the output directory exists
 if (-not (Test-Path -Path $outputDirectory)) {
@@ -103,9 +103,11 @@ function Get-RegistryEntries {
 $userProfiles = Get-CimInstance -Class Win32_UserProfile | Where-Object { $_.Special -eq $false }
 
 # Check if HKU drive exists, create it if it doesn't
+$hkuDriveCreated = $false
 $hkuDrive = Get-PSDrive -Name HKU -ErrorAction SilentlyContinue
 if (-not $hkuDrive) {
     New-PSDrive -PSProvider Registry -Name HKU -Root HKEY_USERS | Out-Null
+    $hkuDriveCreated = $true
 }
 
 # Collect HKCU entries for all users
@@ -132,7 +134,15 @@ foreach ($key in $systemRegistryKeys) {
     $allEntries += Get-RegistryEntries -keyPath $key -username "-"
 }
 
-# Export combined results
-$allEntries | Select-Object Username, RegistryKey, PropertyName, PropertyValue, RemoveCommand | Export-Csv -Path $outputCsvPath -NoTypeInformation -Force
+# Export results, if any
+if ($allEntries.Count -gt 0) {
+    $allEntries | Select-Object Username, RegistryKey, PropertyName, PropertyValue, RemoveCommand | Export-Csv -Path $outputCsvPath -NoTypeInformation -Force
+    Write-Progress -Activity "Run Registry Details Capture" -Status "Process completed." -PercentComplete 100
+} else {
+    Write-Progress -Activity "Run Registry Details Capture" -Status "No entries found." -PercentComplete 100
+}
 
-Write-Progress -Activity "Run Registry Details Capture" -Status "Process completed." -PercentComplete 100
+# Remove the HKU drive if it was created
+if ($hkuDriveCreated) {
+    Remove-PSDrive -Name HKU -Force
+}
