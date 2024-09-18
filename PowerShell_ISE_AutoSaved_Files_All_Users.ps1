@@ -12,15 +12,15 @@ Requires PowerShell v5+ and admin permissions to access user directories.
 soc-otter
 
 .LINK
-https://github.com/soc-otter/Blue/blob/main/PowerShell_ISE_AutoSaved_Files.ps1
+https://github.com/soc-otter/Blue/blob/main/PowerShell_ISE_AutoSaved_Files_All_Users.ps1
 
 .EXAMPLE
-PS> .\PowerShell_ISE_AutoSaved_Files.ps1
+PS> .\PowerShell_ISE_AutoSaved_Files_All_Users.ps1
 #>
 
 # Define output folder and file
 $OutputFolder = "C:\BlueTeam"
-$OutputFile = Join-Path $OutputFolder "PowerShell_ISE_AutoSaved_Files.csv"
+$OutputFile = Join-Path $OutputFolder "PowerShell_ISE_AutoSaved_Files_All_Users.csv"
 
 # Ensure output folder exists
 if (-not (Test-Path $OutputFolder)) {
