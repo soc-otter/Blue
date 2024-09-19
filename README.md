@@ -1,6 +1,6 @@
 # Blue
 
-<img src="images/blue.png" alt="Repo Logo" width="349" height="349" />
+<img src="images/blue_logo.png" alt="Repo Logo" width="350" height="350" />
 
 Welcome to the **Blue** repo — a collection of content for blue team professionals, designed to support both reactive and proactive cybersecurity measures of every aspect.
 
