@@ -17,7 +17,7 @@ https://github.com/soc-otter/Blue/blob/main/High_Entropy_File_Names.ps1
 .EXAMPLE
 PS> .\High_Entropy_File_Names.ps1 (using default hardcoded parameters)
 
-PS> .\High_Entropy_File_Names.ps1 -ExcludeDriveLetters "A", "B" -ExcludeRootPaths "\\abc.example.com\dfspath1", "\\abc.example.com\dfspath2"
+PS> .\High_Entropy_File_Names.ps1 -IgnoredDrives "A", "B" -ExcludedPaths "\\abc.example.com\dfspath1", "\\abc.example.com\dfspath2"
 #>
 
 param(
