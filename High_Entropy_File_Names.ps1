@@ -23,7 +23,7 @@ PS> .\High_Entropy_File_Names.ps1 -ExcludeDriveLetters "A", "B" -ExcludeRootPath
 param(
     [string[]]$IgnoredDrives = @("A", "B"),
     [string[]]$ExcludedPaths = @("\\abc.example.com\dfspath1", "\\abc.example.com\dfspath2"),
-    [double]$EntropyLimit = 5.0
+    [double]$EntropyLimit = 6.0
 )
 
 # Output directory and file for CSV
