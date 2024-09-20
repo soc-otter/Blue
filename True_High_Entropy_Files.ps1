@@ -8,18 +8,19 @@ This script analyzes files across the file system and calculates the entropy of 
 .NOTES
 Requires PowerShell v5+ and permissino to access the files being checked.
 
-This script takes a long time to run. Files greater than 1GB are skipped over.
+!!!![WARNING]!!!!
+This script takes an extremely long time to run in order to calculate the true entropy of each file. Files greater than 1GB are skipped over. Consider alternative scripts such as `Single_File_Entropy.ps1`.
 
 .AUTHOR
 soc-otter
 
 .LINK
-https://github.com/soc-otter/Blue/blob/main/High_Entropy_Files.ps1
+https://github.com/soc-otter/Blue/blob/main/True_High_Entropy_Files.ps1
 
 .EXAMPLE
-PS> .\High_Entropy_Files.ps1 (using default hardcoded parameters)
+PS> .\True_High_Entropy_Files.ps1 (using default hardcoded parameters)
 
-PS> .\High_Entropy_Files.ps1 -IgnoredDrives "A", "B" -ExcludedPaths "\\abc.example.com\dfspath1", "\\abc.example.com\dfspath2"
+PS> .\True_High_Entropy_Files.ps1 -IgnoredDrives "A", "B" -ExcludedPaths "\\abc.example.com\dfspath1", "\\abc.example.com\dfspath2"
 #>
 
 param(
@@ -31,9 +32,9 @@ param(
 
 # Output and exclusion variables
 $outputFolder = 'C:\BlueTeam'
-$csvFilePath = Join-Path $outputFolder 'High_Entropy_Files.csv'
-$tempFilePath = Join-Path $outputFolder 'Temp_High_Entropy_Files.csv'
-$excludedExtensions = @('.png', '.jpg', '.pdf')
+$csvFilePath = Join-Path $outputFolder 'True_High_Entropy_Files.csv'
+$tempFilePath = Join-Path $outputFolder 'Temp_True_High_Entropy_Files.csv'
+$excludedExtensions = @('.xxxxx', '.yyyyy', '.zzzzz')
 
 if (-not (Test-Path -Path $outputFolder)) {
     New-Item -ItemType Directory -Path $outputFolder -Force | Out-Null
