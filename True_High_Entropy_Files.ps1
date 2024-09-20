@@ -6,7 +6,7 @@ Scans the file system for high-entropy files based on content.
 This script analyzes files across the file system and calculates the entropy of their content to identify potentially malicious files. High-entropy files may suggest encryption, compression, or other obfuscation techniques used by malicious actors. The script processes files in chunks to efficiently handle files without consuming excessive memory. Results are exported to a CSV.
 
 .NOTES
-Requires PowerShell v5+ and permissino to access the files being checked.
+Requires PowerShell v5+ and permission to access the files being checked.
 
 !!!![WARNING]!!!!
 Consider alternative scripts such as `Single_File_Entropy.ps1` or `Estimated_High_Entropy_Files.ps1`.
