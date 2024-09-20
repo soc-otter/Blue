@@ -9,7 +9,9 @@ This script analyzes files across the file system and calculates the entropy of 
 Requires PowerShell v5+ and permissino to access the files being checked.
 
 !!!![WARNING]!!!!
-This script takes an extremely long time to run in order to calculate the true entropy of each file. Files greater than 1GB are skipped over. Consider alternative scripts such as `Single_File_Entropy.ps1`.
+Consider alternative scripts such as `Single_File_Entropy.ps1` or `Estimated_High_Entropy_Files.ps1`.
+
+This script takes an extremely long time to run in order to calculate the true entropy of each file. Files greater than 1GB are skipped over.
 
 .AUTHOR
 soc-otter
