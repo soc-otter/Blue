@@ -7,7 +7,7 @@ Checks for alternate data streams across all files.
 This script checks all files for alternate data streams (ADS). It collects detailed metadata about each file and its ADS. Results get written to a CSV file.
 
 .NOTES
-Requires PowerShell v5+ and admin rights.
+Requires PowerShell v5+ and admin rights to get all files.
 
 .AUTHOR
 soc-otter
@@ -19,11 +19,6 @@ https://github.com/soc-otter/Blue/blob/main/Alternate_Data_Streams.ps1
 .\Alternate_Data_Streams.ps1
 
 #>
-
-# Ensure admin privileges
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
-    throw "Admin privileges required."
-}
 
 $outputDirectory = 'C:\BlueTeam'
 $outputFile = Join-Path $outputDirectory 'Alternate_Data_Streams.csv'
