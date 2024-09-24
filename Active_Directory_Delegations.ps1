@@ -38,7 +38,7 @@ if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
     Write-Host "ERROR: ActiveDirectory module not found. Please install RSAT tools to use this script." -ForegroundColor Red
     Write-Host "To install RSAT on Windows 10/11, run the following command in PowerShell as an Administrator:" -ForegroundColor Yellow
     Write-Host "Add-WindowsCapability -Online -Name 'Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0'" -ForegroundColor Yellow
-    exit
+    break
 }
 Import-Module -Name ActiveDirectory
 
