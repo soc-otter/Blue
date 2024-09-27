@@ -1,4 +1,5 @@
 <#
+
 .SYNOPSIS
 Gathers information about local Windows Defender exclusions.
 
@@ -28,7 +29,7 @@ function Test-AdminPrivileges {
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
         Write-Error "This script requires administrative privileges. Please run as an administrator."
-        break
+        exit
     }
 }
 
@@ -43,6 +44,15 @@ function Get-FormattedByteSize {
         $UnitIndex++
     }
     "{0:N2} {1}" -f $Size, $SizeUnits[$UnitIndex]
+}
+
+# Function to check if Windows Defender service is running
+function Test-DefenderService {
+    $service = Get-Service -Name "WinDefend" -ErrorAction SilentlyContinue
+    if ($service.Status -ne 'Running') {
+        Write-Error "Windows Defender service is not running. Please ensure it is running before executing the script."
+        exit
+    }
 }
 
 # Function to get file owner
@@ -134,6 +144,11 @@ function Get-FileOrFolderDetails {
     )
 
     $results = @()
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        Write-Warning "Skipping empty or null path exclusion: '$originalExclusion'."
+        return $results
+    }
+
     if (Test-Path $path) {
         $items = if (Test-Path $path -PathType Container) {
             Get-ChildItem -Path $path -Recurse
@@ -229,6 +244,11 @@ function Get-DefenderExclusionsDetails {
         # Process Exclusions
         $mpPreference.ExclusionProcess | ForEach-Object {
             try {
+                if ([string]::IsNullOrWhiteSpace($_)) {
+                    Write-Warning "Skipping empty or null process exclusion: '$_'."
+                    return
+                }
+
                 if (Test-Path $_) {
                     $file = Get-Item $_
                     $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($_)
@@ -296,6 +316,11 @@ function Get-DefenderExclusionsDetails {
         # Network Exclusions
         $mpPreference.ExclusionIpAddress | ForEach-Object {
             try {
+                if ([string]::IsNullOrWhiteSpace($_)) {
+                    Write-Warning "Skipping empty or null IP exclusion: '$_'."
+                    return
+                }
+
                 $networkInfo = Get-NetworkConnectionDetails $_
 
                 $results += [PSCustomObject]@{
@@ -487,6 +512,7 @@ function Get-DefenderExclusionsDetails {
 }
 
 Test-AdminPrivileges
+Test-DefenderService
 
 $exclusionsDetails = Get-DefenderExclusionsDetails
 
