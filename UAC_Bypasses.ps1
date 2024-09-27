@@ -34,7 +34,7 @@ if (-not (Test-IsAdmin)) {
     break
 }
 
-# Define comprehensive UAC bypass registry locations
+# Define UAC bypass registry locations
 $registryPaths = @(
     "Software\Classes\mscfile\shell\open\command",  # eventvwr.exe
     "Software\Microsoft\Windows\CurrentVersion\App Paths\control.exe",  # sdclt.exe
