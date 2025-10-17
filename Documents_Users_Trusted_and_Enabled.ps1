@@ -219,67 +219,85 @@ foreach ($sid in $userSIDs) {
     $username = try {
         $objSID = New-Object System.Security.Principal.SecurityIdentifier($sid.PSChildName)
         $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
-        $objUser.Value.Split('\')[1]  # Extract just the username part
+        $objUser.Value.Split('\')[1]
     } catch {
         "Unknown User (SID: $($sid.PSChildName))"
     }
 
-    # Construct the registry path for Trusted Documents
-    $trustRecordsPath = Join-Path $sid.PSPath "Software\Microsoft\Office\*\*\Security\Trusted Documents\TrustRecords"
+    # Build the base registry path
+    $officeBasePath = "$($sid.PSPath)\Software\Microsoft\Office"
     
-    # Get Trusted Document records for this user
-    $trustedDocumentRegistryKeys = Get-ChildItem $trustRecordsPath -ErrorAction SilentlyContinue
+    # Get all Office versions (16.0, 15.0, etc.)
+    $officeVersions = Get-ChildItem $officeBasePath -ErrorAction SilentlyContinue
+    
+    foreach ($version in $officeVersions) {
+        # Get all applications under this version (Word, Excel, PowerPoint, etc.)
+        $applications = Get-ChildItem $version.PSPath -ErrorAction SilentlyContinue
+        
+        foreach ($app in $applications) {
+            # Build path to TrustRecords for this specific app
+            $trustRecordsPath = "$($app.PSPath)\Security\Trusted Documents\TrustRecords"
+            
+            # Check if this path exists
+            if (Test-Path $trustRecordsPath) {
+                # Get the registry key
+                $registryKey = Get-Item $trustRecordsPath
+                
+                # Capture the application name (Word, Excel, PowerPoint, etc.)
+                $applicationName = $app.PSChildName
+                
+                # Query the registry key
+                $registryQueryResult = reg query $registryKey.Name
+                
+                # Split the result into lines for processing
+                $queryLines = $registryQueryResult -split "`r`n"
+                
+                # Process each line in the result
+                foreach ($line in $queryLines) {
+                    # Match lines with the regex pattern
+                    if ($line -match $registryDataPattern) {
+                        # Extract the file name and binary data, then clean up the file name
+                        $FileName = $matches['FileName'].Trim()
+                        $BinaryData = $matches['BinaryData']
 
-    foreach ($registryKey in $trustedDocumentRegistryKeys) {
-        # Query each registry key
-        $registryQueryResult = reg query $registryKey.Name
+                        # Resolve the full and clean path of the file once, using the username
+                        $resolvedFilePath = Resolve-DocumentPath -documentPath $FileName -username $username
 
-        # Split the result into lines for processing
-        $queryLines = $registryQueryResult -split "`r`n"
+                        # Get file details after path resolution
+                        $fileInfo = Get-DocumentFileInfo -documentPath $resolvedFilePath
 
-        # Process each line in the result
-        foreach ($line in $queryLines) {
-            # Match lines with the regex pattern
-            if ($line -match $registryDataPattern) {
-                # Extract the file name and binary data, then clean up the file name
-                $FileName = $matches['FileName'].Trim()
-                $BinaryData = $matches['BinaryData']
+                        # Figure out editing and content enabled status from binary data
+                        $editingEnabled = $false
+                        $contentEnabled = $false
 
-                # Resolve the full and clean path of the file once, using the username
-                $resolvedFilePath = Resolve-DocumentPath -documentPath $FileName -username $username
+                        if ($BinaryData -match 'FFFFFF7F') {
+                            $editingEnabled = $true
+                            $contentEnabled = $true
+                        } elseif ($BinaryData -match '01000000') {
+                            $editingEnabled = $true
+                            $contentEnabled = $false
+                        }
 
-                # Get file details after path resolution
-                $fileInfo = Get-DocumentFileInfo -documentPath $resolvedFilePath
-
-                # Figure out editing and content enabled status from binary data
-                $editingEnabled = $false
-                $contentEnabled = $false
-
-                if ($BinaryData -match 'FFFFFF7F') {
-                    $editingEnabled = $true
-                    $contentEnabled = $true
-                } elseif ($BinaryData -match '01000000') {
-                    $editingEnabled = $true
-                    $contentEnabled = $false
-                }
-
-                # Add the file info and ADS data to the array
-                $trustedDocumentsData += [PSCustomObject]@{
-                    Hostname        = $hostname
-                    HKCUUser        = "$env:COMPUTERNAME\$username"
-                    FileName        = $resolvedFilePath
-                    Owner           = $fileInfo.Owner
-                    FileSize        = $fileInfo.FileSize
-                    EditingEnabled  = $editingEnabled
-                    ContentEnabled  = $contentEnabled
-                    SHA256Hash      = $fileInfo.SHA256Hash
-                    ReferrerUrl     = $fileInfo.ReferrerUrl
-                    DownloadLink    = $fileInfo.DownloadLink
-                    CreationTime    = $fileInfo.CreationTime
-                    LastAccessTime  = $fileInfo.LastAccessTime
-                    LastWriteTime   = $fileInfo.LastWriteTime
-                    ZoneId          = $fileInfo.ZoneId
-                    BinaryData      = $BinaryData
+                        # Add the file info and ADS data to the array
+                        $trustedDocumentsData += [PSCustomObject]@{
+                            Hostname        = $hostname
+                            HKCUUser        = "$env:COMPUTERNAME\$username"
+                            Application     = $applicationName
+                            FileName        = $resolvedFilePath
+                            Owner           = $fileInfo.Owner
+                            FileSize        = $fileInfo.FileSize
+                            EditingEnabled  = $editingEnabled
+                            ContentEnabled  = $contentEnabled
+                            SHA256Hash      = $fileInfo.SHA256Hash
+                            ReferrerUrl     = $fileInfo.ReferrerUrl
+                            DownloadLink    = $fileInfo.DownloadLink
+                            CreationTime    = $fileInfo.CreationTime
+                            LastAccessTime  = $fileInfo.LastAccessTime
+                            LastWriteTime   = $fileInfo.LastWriteTime
+                            ZoneId          = $fileInfo.ZoneId
+                            BinaryData      = $BinaryData
+                        }
+                    }
                 }
             }
         }
